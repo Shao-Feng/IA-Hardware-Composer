@@ -41,11 +41,9 @@ class GLRenderer : public Renderer {
   void SetExplicitSyncSupport(bool disable_explicit_sync) override;
 
  private:
-  GLProgram *GetProgram(unsigned texture_count);
-
   EGLOffScreenContext context_;
 
-  std::vector<std::unique_ptr<GLProgram>> programs_;
+  std::unique_ptr<GLProgram> program_;
   GLuint vertex_array_ = 0;
   bool disable_explicit_sync_ = false;
 };

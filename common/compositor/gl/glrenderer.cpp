@@ -64,10 +64,8 @@ bool GLRenderer::Init() {
   glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
   glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
 
-  std::unique_ptr<GLProgram> program(new GLProgram());
-  if (program->Init(1)) {
-    programs_.emplace_back(std::move(program));
-  }
+  program_ = std::make_unique<GLProgram>();
+  program_->Init();
 
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
@@ -135,13 +133,10 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
       damage.left, damage.top, damage.right - damage.left,
       damage.bottom - damage.top);
 #endif
+
   for (const RenderState &state : render_states) {
     unsigned size = state.layer_state_.size();
-    GLProgram *program = GetProgram(size);
-    if (!program)
-      continue;
-
-    program->UseProgram(state, frame_width, frame_height);
+    program_->UseProgram(state, frame_width, frame_height);
 #ifdef COMPOSITOR_TRACING
     ICOMPOSITORTRACE(
         "scissor_x_: %d state.scissor_y_: %d scissor_width_: %d "
@@ -169,7 +164,6 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
       glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
     }
   }
-
   glDisable(GL_SCISSOR_TEST);
 
   if (!disable_explicit_sync_)
@@ -209,25 +203,6 @@ void GLRenderer::InsertFence(int32_t kms_fence) {
 
 void GLRenderer::SetExplicitSyncSupport(bool disable_explicit_sync) {
   disable_explicit_sync_ = disable_explicit_sync;
-}
-
-GLProgram *GLRenderer::GetProgram(unsigned texture_count) {
-  if (programs_.size() >= texture_count) {
-    GLProgram *program = programs_[texture_count - 1].get();
-    if (program != 0)
-      return program;
-  }
-
-  std::unique_ptr<GLProgram> program(new GLProgram());
-  if (program->Init(texture_count)) {
-    if (programs_.size() < texture_count)
-      programs_.resize(texture_count);
-
-    programs_[texture_count - 1] = std::move(program);
-    return programs_[texture_count - 1].get();
-  }
-
-  return 0;
 }
 
 }  // namespace hwcomposer

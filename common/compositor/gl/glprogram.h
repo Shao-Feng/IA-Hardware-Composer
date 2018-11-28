@@ -17,6 +17,8 @@
 #ifndef COMMON_COMPOSITOR_GL_GLPROGRAM_H_
 #define COMMON_COMPOSITOR_GL_GLPROGRAM_H_
 
+#define MAX_LAYER_COUNT_ 32
+
 #include <vector>
 
 #include "shim.h"
@@ -33,7 +35,7 @@ class GLProgram {
 
   ~GLProgram();
 
-  bool Init(unsigned texture_count);
+  bool Init();
   void UseProgram(const RenderState& cmd, GLuint viewport_width,
                   GLuint viewport_height);
 
@@ -45,7 +47,8 @@ class GLProgram {
   GLint premult_loc_;
   GLint tex_matrix_loc_;
   GLint solid_color_loc_;
-  bool initialized_;
+  GLint layer_count_loc_;
+  uint8_t previous_layer_size_;
 };
 
 }  // namespace hwcomposer

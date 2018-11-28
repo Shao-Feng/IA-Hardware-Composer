@@ -58,20 +58,21 @@ static GLint CompileAndCheckShader(GLenum type, unsigned source_count,
   return shader;
 }
 
-static std::string GenerateVertexShader(int layer_count) {
+static std::string GenerateVertexShader() {
   std::ostringstream vertex_shader_stream;
   vertex_shader_stream
       << "#version 300 es\n"
-      << "#define LAYER_COUNT " << layer_count << "\n"
+      << "#define LAYER_COUNT " << MAX_LAYER_COUNT_ << "\n"
       << "precision mediump int;\n"
       << "uniform vec4 uViewport;\n"
       << "uniform vec4 uLayerCrop[LAYER_COUNT];\n"
       << "uniform mat2 uTexMatrix[LAYER_COUNT];\n"
+      << "uniform int uLayerCount;\n"
       << "in vec2 vPosition;\n"
       << "in vec2 vTexCoords;\n"
       << "out vec2 fTexCoords[LAYER_COUNT];\n"
       << "void main() {\n"
-      << "  for (int i = 0; i < LAYER_COUNT; i++) {\n"
+      << "  for (int i = 0; i < uLayerCount && i < LAYER_COUNT; i++) {\n"
       << "    vec2 tempCoords = vTexCoords * uTexMatrix[i];\n"
       << "    fTexCoords[i] =\n"
       << "        uLayerCrop[i].xy + tempCoords * uLayerCrop[i].zw;\n"
@@ -83,47 +84,54 @@ static std::string GenerateVertexShader(int layer_count) {
   return vertex_shader_stream.str();
 }
 
-static std::string GenerateFragmentShader(int layer_count) {
+static std::string GenerateFragmentShader() {
   std::ostringstream fragment_shader_stream;
   fragment_shader_stream << "#version 300 es\n"
-                         << "#define LAYER_COUNT " << layer_count << "\n"
+                         << "#define LAYER_COUNT " << MAX_LAYER_COUNT_ << "\n"
                          << "#extension GL_OES_EGL_image_external : require\n"
                          << "precision mediump float;\n";
-  for (int i = 0; i < layer_count; ++i) {
+  for (int i = 0; i < MAX_LAYER_COUNT_; ++i) {
     fragment_shader_stream << "uniform samplerExternalOES uLayerTexture" << i
                            << ";\n";
   }
   fragment_shader_stream << "uniform float uLayerAlpha[LAYER_COUNT];\n"
                          << "uniform float uLayerPremult[LAYER_COUNT];\n"
                          << "uniform vec4 uLayerColor[LAYER_COUNT];\n"
+                         << "uniform int uLayerCount;\n"
                          << "in vec2 fTexCoords[LAYER_COUNT];\n"
                          << "out vec4 oFragColor;\n"
                          << "void main() {\n"
                          << "  vec3 color = vec3(0.0, 0.0, 0.0);\n"
                          << "  float alphaCover = 1.0;\n"
                          << "  vec4 texSample;\n"
-                         << "  vec3 multRgb;\n";
-  for (int i = 0; i < layer_count; ++i) {
+                         << "  vec3 multRgb;\n"
+                         << "  int layer_index = 0;\n";
+  for (int i = 0; i < MAX_LAYER_COUNT_; ++i) {
     if (i > 0)
-      fragment_shader_stream << "  if (alphaCover > 0.5/255.0) {\n";
+      fragment_shader_stream
+          << "  if (alphaCover > 0.5/255.0 && layer_index < uLayerCount) {\n";
+    else
+      fragment_shader_stream << "  if(layer_index < uLayerCount) {\n";
     // clang-format off
-    fragment_shader_stream << "  texSample = texture2D(uLayerTexture" << i
+    fragment_shader_stream << "    layer_index++;\n"
+                           << "    texSample = texture2D(uLayerTexture" << i
                            << ",\n"
-                           << "                        fTexCoords[" << i
+                           << "                          fTexCoords[" << i
                            << "]);\n"
-                           << "  texSample = texSample + uLayerColor[" << i
+                           << "    texSample = texSample + uLayerColor[" << i
                            << "];\n"
-                           << "  multRgb = texSample.rgb *\n"
-                           << "            max(texSample.a, uLayerPremult[" << i
+                           << "    multRgb = texSample.rgb *\n"
+                           << "              max(texSample.a, uLayerPremult[" << i
                            << "]);\n"
-                           << "  color += multRgb * uLayerAlpha[" << i
+                           << "    color += multRgb * uLayerAlpha[" << i
                            << "] * alphaCover;\n"
-                           << "  alphaCover *= 1.0 - texSample.a * uLayerAlpha["
+                           << "    alphaCover *= 1.0 - texSample.a * uLayerAlpha["
                            << i << "];\n";
     // clang-format on
   }
-  for (int i = 0; i < layer_count - 1; ++i)
+  for (int i = 0; i < MAX_LAYER_COUNT_; ++i)
     fragment_shader_stream << "  }\n";
+
   fragment_shader_stream << "  oFragColor = vec4(color, 1.0 - alphaCover);\n"
                          << "}\n";
   return fragment_shader_stream.str();
@@ -155,8 +163,7 @@ static GLint LoadPreBuiltBinary(GLint gl_program, void *binary, long size) {
 #include "glprebuiltshaderarray.h"
 #endif
 
-static GLint GenerateProgram(unsigned num_textures,
-                             std::ostringstream *shader_log) {
+static GLint GenerateProgram(std::ostringstream *shader_log) {
   GLint status;
   GLint program = glCreateProgram();
 #if defined(LOAD_PREBUILT_SHADER_FILE) || defined(USE_PREBUILT_SHADER_BIN_ARRAY)
@@ -175,6 +182,9 @@ static GLint GenerateProgram(unsigned num_textures,
   /* try to retrieve shader binary program from built-in arrays */
 
   /* support only up to 16 layers */
+  /* parameter 'num_textures' has been removed from this function parameter list
+   * if this feature is enabled, please re-consider the layer numbers.
+   */
   if (num_textures > 0 && num_textures < 17) {
     /* first long is the size of binary */
     binary_sz = *(long *)shader_prog_arrays[num_textures - 1];
@@ -249,14 +259,14 @@ fail_file_open:
                 << "now trying run-time build\n";
 #endif
 
-  std::string vertex_shader_string = GenerateVertexShader(num_textures);
+  std::string vertex_shader_string = GenerateVertexShader();
   const GLchar *vertex_shader_source = vertex_shader_string.c_str();
   GLint vertex_shader = CompileAndCheckShader(
       GL_VERTEX_SHADER, 1, &vertex_shader_source, shader_log);
   if (!vertex_shader)
     return 0;
 
-  std::string fragment_shader_string = GenerateFragmentShader(num_textures);
+  std::string fragment_shader_string = GenerateFragmentShader();
   const GLchar *fragment_shader_source = fragment_shader_string.c_str();
   GLint fragment_shader = CompileAndCheckShader(
       GL_FRAGMENT_SHADER, 1, &fragment_shader_source, shader_log);
@@ -298,7 +308,7 @@ GLProgram::GLProgram()
       alpha_loc_(0),
       premult_loc_(0),
       tex_matrix_loc_(0),
-      initialized_(false) {
+      previous_layer_size_(0) {
 }
 
 GLProgram::~GLProgram() {
@@ -306,14 +316,14 @@ GLProgram::~GLProgram() {
     glDeleteProgram(program_);
 }
 
-bool GLProgram::Init(unsigned texture_count) {
+bool GLProgram::Init() {
   std::ostringstream shader_log;
-  program_ = GenerateProgram(texture_count, &shader_log);
+  if (!program_)
+    program_ = GenerateProgram(&shader_log);
   if (!program_) {
     ETRACE("%s", shader_log.str().c_str());
     return false;
   }
-
   return true;
 }
 
@@ -321,13 +331,16 @@ void GLProgram::UseProgram(const RenderState &state, GLuint viewport_width,
                            GLuint viewport_height) {
   glUseProgram(program_);
   unsigned size = state.layer_state_.size();
-  if (!initialized_) {
+  if (size != previous_layer_size_) {
     viewport_loc_ = glGetUniformLocation(program_, "uViewport");
     crop_loc_ = glGetUniformLocation(program_, "uLayerCrop");
     alpha_loc_ = glGetUniformLocation(program_, "uLayerAlpha");
     premult_loc_ = glGetUniformLocation(program_, "uLayerPremult");
     tex_matrix_loc_ = glGetUniformLocation(program_, "uTexMatrix");
     solid_color_loc_ = glGetUniformLocation(program_, "uLayerColor");
+    layer_count_loc_ = glGetUniformLocation(program_, "uLayerCount");
+
+    glUniform1i(layer_count_loc_, size);
     for (unsigned src_index = 0; src_index < size; src_index++) {
       std::ostringstream texture_name_formatter;
       texture_name_formatter << "uLayerTexture" << src_index;
@@ -336,7 +349,7 @@ void GLProgram::UseProgram(const RenderState &state, GLuint viewport_width,
       glUniform1i(tex_loc, src_index);
     }
 
-    initialized_ = true;
+    previous_layer_size_ = size;
   }
 
   glUniform4f(viewport_loc_, state.x_ / (float)viewport_width,
