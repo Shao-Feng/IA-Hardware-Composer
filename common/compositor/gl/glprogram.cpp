@@ -111,8 +111,10 @@ static std::string GenerateFragmentShader(int layer_count) {
                            << ",\n"
                            << "                        fTexCoords[" << i
                            << "]);\n"
-                           << "  texSample = texSample + uLayerColor[" << i
-                           << "];\n"
+                           << "  texSample.rgb = texSample.rgb + uLayerColor[" << i
+                           << "].rgb;\n"
+                           << "  texSample.a = min(texSample + uLayerColor[" << i
+                           << "].a;\n"
                            << "  multRgb = texSample.rgb *\n"
                            << "            max(texSample.a, uLayerPremult[" << i
                            << "]);\n"
@@ -137,7 +139,9 @@ static GLint LoadPreBuiltBinary(GLint gl_program, void *binary, long size) {
   if (!glProgramBinaryOES)
     return 0;
 
-  /* currently GL_MESA_program_binary_formats is not exposed by MESA drv
+  /yerAlpha                           << "]);\n"
+
+uLayerColor* currently GL_MESA_program_binary_formats is not exposed by MESA drv
    * TODO: will enable this once this is fixed in MESA
    */
 
