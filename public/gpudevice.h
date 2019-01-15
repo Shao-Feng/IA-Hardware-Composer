@@ -91,6 +91,8 @@ class GpuDevice : public HWCThread {
 
   bool IsReservedDrmPlane();
 
+  bool EnableDRMCommit(bool enable);
+
   std::vector<uint32_t> GetDisplayReservedPlanes(uint32_t display_id);
 
  private:

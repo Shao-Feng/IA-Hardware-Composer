@@ -285,6 +285,15 @@ uint32_t HwcService_GetDisplayIDFromConnectorID(HWCSHANDLE hwcs,
   return pContext->mControls->GetDisplayIDFromConnectorID(connector_id);
 }
 
+status_t HwcService_EnableDRMCommit(HWCSHANDLE hwcs, uint32_t enable) {
+  HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
+  if (!pContext) {
+    return android::BAD_VALUE;
+  }
+
+  return pContext->mControls->EnableDRMCommit(enable);
+}
+
 status_t HwcService_Video_DisableHDCPSession_AllDisplays(HWCSHANDLE hwcs) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {

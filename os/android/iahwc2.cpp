@@ -1277,6 +1277,10 @@ uint32_t IAHWC2::GetDisplayIDFromConnectorID(const uint32_t connector_id) {
   return device_.GetDisplayIDFromConnectorID(connector_id);
 }
 
+bool IAHWC2::EnableDRMCommit(bool enable) {
+  return device_.EnableDRMCommit(enable);
+}
+
 void IAHWC2::SetHDCPSRMForDisplay(uint32_t connector, const int8_t *SRM,
                                   uint32_t SRMLength) {
   if (SRM == NULL) {

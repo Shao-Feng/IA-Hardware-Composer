@@ -1589,6 +1589,7 @@ void DisplayQueue::HandleIdleCase() {
   power_mode_lock_.unlock();
   idle_tracker_.idle_lock_.unlock();
 }
+
 void DisplayQueue::ForceRefresh() {
   idle_tracker_.idle_lock_.lock();
   idle_tracker_.state_ &= ~FrameStateTracker::kIgnoreUpdates;
