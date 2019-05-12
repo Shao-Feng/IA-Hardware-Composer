@@ -22,6 +22,7 @@
 
 #include <vector>
 
+#include <sys/time.h>
 #include "displayplanemanager.h"
 #include "hwctrace.h"
 #include "hwcutils.h"
@@ -899,10 +900,15 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   int32_t fence = 0;
   bool fence_released = false;
-  if (!IsIgnoreUpdates())
+  if (!IsIgnoreUpdates()) {
     composition_passed = display_->Commit(
         current_composition_planes, previous_plane_state_, disable_explictsync,
         kms_fence_, &fence, &fence_released);
+    struct timeval te;
+    gettimeofday(&te, NULL); // get current time
+    long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // calculate milliseconds
+    ETRACE("===============Finish Commit at %lld.", milliseconds);
+  }
 
   if (fence_released) {
     kms_fence_ = 0;
