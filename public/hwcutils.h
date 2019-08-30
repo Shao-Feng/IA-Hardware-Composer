@@ -18,6 +18,8 @@
 #define COMMON_UTILS_HWCUTILS_H_
 
 #ifdef USE_ANDROID_PROPERTIES
+#define HWC_READY_PROPERTY "vendor.hwc.ready"
+
 #include <cutils/properties.h>
 #endif
 #include <hwcdefs.h>
@@ -83,6 +85,16 @@ bool IsSupportedMediaFormat(uint32_t format);
  * @return The number of planes for a given format
  */
 uint32_t GetTotalPlanesForFormat(uint32_t format);
+
+#ifdef USE_ANDROID_PROPERTIES
+/**
+ * Mark HWC is set as DRM master. then allow other App (such as HDCP)
+ * to execute DRM command.
+ *
+ * @return true when the property is set.
+ */
+bool MarkHwcIsDrmMasterInSystem();
+#endif
 
 #ifdef KVM_HWC_PROPERTY
 /**

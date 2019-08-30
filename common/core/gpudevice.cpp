@@ -85,6 +85,12 @@ bool GpuDevice::Initialize() {
     if (!display_manager_->IsDrmMasterByDefault())
       display_manager_->setDrmMaster(true);
     ResetAllDisplayCommit(true);
+#ifdef USE_ANDROID_PROPERTIES
+    if (MarkHwcIsDrmMasterInSystem())
+      ITRACE("HWC is DRM master, the property '%s' is set", HWC_READY_PROPERTY);
+    else
+      ETRACE("Fail to set system property '%s'", HWC_READY_PROPERTY);
+#endif
   }
 
   return true;

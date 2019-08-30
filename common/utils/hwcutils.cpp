@@ -144,6 +144,14 @@ uint32_t GetTotalPlanesForFormat(uint32_t format) {
   return 1;
 }
 
+#ifdef USE_ANDROID_PROPERTIES
+bool MarkHwcIsDrmMasterInSystem() {
+  const char* key = HWC_READY_PROPERTY;
+  const char* value = "1";
+  return property_set(key, value) == 0;
+}
+#endif
+
 #ifdef KVM_HWC_PROPERTY
 bool IsKvmPlatform() {
   const char* key = KVM_HWC_PROPERTY;
